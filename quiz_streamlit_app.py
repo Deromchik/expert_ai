@@ -47,6 +47,165 @@ def _now_iso() -> str:
 
 
 # ---------------------------------------------------------------------------
+# DIFFICULTY LEVELS
+# ---------------------------------------------------------------------------
+
+DIFFICULTY_LEVELS: dict[int, dict] = {
+    1: {
+        "label": "1 — Beginner",
+        "validation_threshold": 0.50,
+        "question_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 1 (BEGINNER) ===\n"
+            "Generate VERY EASY questions suitable for absolute beginners.\n"
+            "- Questions should test basic terminology recall and simple definitions.\n"
+            "- Answers should be single words or very short phrases (1-2 words).\n"
+            "- Avoid any questions requiring understanding of relationships between concepts.\n"
+            "- Focus on the most fundamental, surface-level facts from the materials.\n"
+            "- Each question should have a clear, unambiguous single correct answer.\n"
+            "- Provide 3-5 acceptable answer variants (synonyms, abbreviations, alternate forms).\n\n"
+        ),
+        "reasoning_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 1 (BEGINNER) ===\n"
+            "Generate VERY EASY reasoning questions suitable for absolute beginners.\n"
+            "- Scenarios should be simple and straightforward with an obvious course of action.\n"
+            "- Only one clear consideration or step is needed to solve the scenario.\n"
+            "- Use everyday, relatable situations that directly map to a single concept from the lesson.\n"
+            "- The expected reasoning should be short and simple (2-3 sentences).\n\n"
+        ),
+        "validation_instruction": (
+            "DIFFICULTY ADJUSTMENT (Level 1 — Beginner):\n"
+            "The quiz difficulty is set to BEGINNER level. Be VERY lenient when scoring.\n"
+            "- Accept answers that are approximately correct or in the right direction.\n"
+            "- If the student demonstrates they understand the general area/topic, give generous credit.\n"
+            "- Synonyms, related terms, and imprecise but directionally correct answers should score highly.\n"
+            "- A validation_score >= 0.50 should be considered passing for this difficulty level.\n"
+            "- Only give very low scores if the answer is completely unrelated or fundamentally wrong.\n"
+        ),
+    },
+    2: {
+        "label": "2 — Elementary",
+        "validation_threshold": 0.60,
+        "question_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 2 (ELEMENTARY) ===\n"
+            "Generate EASY questions suitable for learners with basic knowledge.\n"
+            "- Questions should test simple understanding and basic recall.\n"
+            "- Answers should be short (1-3 words).\n"
+            "- Questions may test simple relationships between two concepts.\n"
+            "- Stick to the most important, clearly stated facts from the materials.\n"
+            "- Provide 2-4 acceptable answer variants.\n\n"
+        ),
+        "reasoning_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 2 (ELEMENTARY) ===\n"
+            "Generate EASY reasoning questions for learners with basic knowledge.\n"
+            "- Scenarios should be straightforward with a clear recommended action.\n"
+            "- Require consideration of 1-2 factors from the lesson.\n"
+            "- Situations should be practical and easy to relate to.\n"
+            "- The expected reasoning should involve 2-4 simple steps.\n\n"
+        ),
+        "validation_instruction": (
+            "DIFFICULTY ADJUSTMENT (Level 2 — Elementary):\n"
+            "The quiz difficulty is set to ELEMENTARY level. Be lenient when scoring.\n"
+            "- Accept answers that capture the main idea even if details are missing.\n"
+            "- Related terms and partially correct answers should receive partial credit.\n"
+            "- A validation_score >= 0.60 should be considered passing for this difficulty level.\n"
+            "- Penalize only clearly incorrect or unrelated answers.\n"
+        ),
+    },
+    3: {
+        "label": "3 — Intermediate",
+        "validation_threshold": 0.70,
+        "question_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 3 (INTERMEDIATE) ===\n"
+            "Generate MODERATE difficulty questions for learners with solid foundational knowledge.\n"
+            "- Questions should test understanding of concepts and their relationships.\n"
+            "- Answers should be concise (1-3 words) but require understanding, not just memorization.\n"
+            "- Include questions about how concepts connect or differ from each other.\n"
+            "- Provide 2-4 acceptable answer variants.\n\n"
+        ),
+        "reasoning_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 3 (INTERMEDIATE) ===\n"
+            "Generate MODERATE reasoning questions for learners with solid knowledge.\n"
+            "- Scenarios should involve multiple considerations and trade-offs.\n"
+            "- Require applying knowledge from the lesson to realistic situations.\n"
+            "- The expected reasoning should involve 3-5 steps with clear logic.\n"
+            "- Include scenarios where more than one approach is possible but one is clearly better.\n\n"
+        ),
+        "validation_instruction": (
+            "DIFFICULTY ADJUSTMENT (Level 3 — Intermediate):\n"
+            "The quiz difficulty is set to INTERMEDIATE level. Apply standard scoring.\n"
+            "- Answers should demonstrate understanding of the concept, not just recall.\n"
+            "- Accept semantically equivalent answers with minor imprecisions.\n"
+            "- A validation_score >= 0.70 should be considered passing for this difficulty level.\n"
+            "- Partial credit for answers that show understanding but miss important nuances.\n"
+        ),
+    },
+    4: {
+        "label": "4 — Advanced",
+        "validation_threshold": 0.80,
+        "question_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 4 (ADVANCED) ===\n"
+            "Generate CHALLENGING questions for learners with strong knowledge.\n"
+            "- Questions should test deeper understanding, analysis, and application.\n"
+            "- Include questions about edge cases, exceptions, or subtle distinctions.\n"
+            "- Require precise answers that demonstrate thorough understanding.\n"
+            "- Provide 2-3 acceptable answer variants (less tolerance for imprecision).\n\n"
+        ),
+        "reasoning_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 4 (ADVANCED) ===\n"
+            "Generate CHALLENGING reasoning questions for knowledgeable learners.\n"
+            "- Scenarios should involve complex trade-offs and multiple interacting factors.\n"
+            "- Require synthesis of several concepts from the lesson.\n"
+            "- The expected reasoning should be thorough and well-structured.\n"
+            "- Include scenarios with non-obvious solutions that require critical analysis.\n\n"
+        ),
+        "validation_instruction": (
+            "DIFFICULTY ADJUSTMENT (Level 4 — Advanced):\n"
+            "The quiz difficulty is set to ADVANCED level. Apply strict scoring.\n"
+            "- Answers must be precise and demonstrate clear understanding.\n"
+            "- Semantically equivalent answers are accepted, but vague or overly general answers should score lower.\n"
+            "- A validation_score >= 0.80 should be considered passing for this difficulty level.\n"
+            "- Require correct key terms and accurate relationships between concepts.\n"
+        ),
+    },
+    5: {
+        "label": "5 — Expert",
+        "validation_threshold": 0.88,
+        "question_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 5 (EXPERT) ===\n"
+            "Generate VERY DIFFICULT questions for expert-level learners.\n"
+            "- Questions should test synthesis, critical evaluation, and nuanced understanding.\n"
+            "- Include questions about implications, limitations, and advanced applications.\n"
+            "- Require highly precise, technically accurate answers.\n"
+            "- Provide only 1-2 acceptable answer variants (very strict matching).\n"
+            "- Questions may combine concepts from current and previous lessons.\n\n"
+        ),
+        "reasoning_generation_instruction": (
+            "=== DIFFICULTY LEVEL: 5 (EXPERT) ===\n"
+            "Generate VERY DIFFICULT reasoning questions for expert learners.\n"
+            "- Scenarios should be highly complex with multiple competing priorities.\n"
+            "- Require deep synthesis of concepts from across all provided materials.\n"
+            "- The expected reasoning should demonstrate expert-level analysis and judgment.\n"
+            "- Include scenarios with ambiguity where the quality of reasoning matters most.\n"
+            "- Expect thorough consideration of consequences and edge cases.\n\n"
+        ),
+        "validation_instruction": (
+            "DIFFICULTY ADJUSTMENT (Level 5 — Expert):\n"
+            "The quiz difficulty is set to EXPERT level. Apply very strict scoring.\n"
+            "- Answers must be precise, technically correct, and comprehensive.\n"
+            "- Only accept answers that demonstrate deep understanding.\n"
+            "- A validation_score >= 0.88 should be considered passing for this difficulty level.\n"
+            "- Vague, incomplete, or imprecise answers should score significantly lower.\n"
+            "- Require correct use of terminology and accurate conceptual relationships.\n"
+        ),
+    },
+}
+
+
+def get_difficulty_config(level: int) -> dict:
+    return DIFFICULTY_LEVELS.get(level, DIFFICULTY_LEVELS[3])
+
+
+# ---------------------------------------------------------------------------
 # PROMPT TEMPLATES (from prompt_review_runner_2.py)
 # ---------------------------------------------------------------------------
 
@@ -61,6 +220,7 @@ PROMPT_GIFTQUIZ_QUESTIONS_TEMPLATE: str = (
     "You are an assessment designer. Generate SHORT ANSWER questions in {language_name} (language code: {course_language}) in strict JSON.\n"
     "Prioritize the CURRENT LESSON materials, use previous lesson summaries only if helpful.\n"
     "IMPORTANT: All questions and answers must be written in {language_name}.\n\n"
+    "{difficulty_block}"
     "Materials (may be partial):\n"
     "Gift (raw, may include questions):\n{gift_text}\n\n"
     "{extracted_block}"
@@ -105,6 +265,7 @@ PROMPT_GIFTQUIZ_REASONING_QUESTIONS_TEMPLATE: str = (
     "Each question should describe a situation or challenge, and the answer should explain the reasoning process and recommended actions.\n"
     "Prioritize the CURRENT LESSON materials, use previous lesson summaries only if helpful.\n"
     "IMPORTANT: All questions and answers must be written in {language_name}.\n\n"
+    "{difficulty_block}"
     "Materials (may be partial):\n"
     "Gift (raw, may include questions):\n{gift_text}\n\n"
     "{extracted_block}"
@@ -867,8 +1028,9 @@ def build_system_prompt(course_language: str) -> str:
     )
 
 
-def build_giftquiz_questions_prompt(payload: dict, course_language: str = "en") -> str:
+def build_giftquiz_questions_prompt(payload: dict, course_language: str = "en", difficulty_level: int = 3) -> str:
     language_name = get_language_name(course_language)
+    difficulty_cfg = get_difficulty_config(difficulty_level)
     data = payload.get("data") or {}
     gift_text = (data.get("gift") or "")[:4000]
     extracted = (data.get("extracted_text") or "")[:4000]
@@ -890,11 +1052,13 @@ def build_giftquiz_questions_prompt(payload: dict, course_language: str = "en") 
         language_name=language_name, course_language=course_language,
         gift_text=gift_text, extracted_block=extracted_block,
         other_block=other_block, prev_block=prev_block,
+        difficulty_block=difficulty_cfg["question_generation_instruction"],
     )
 
 
-def build_giftquiz_reasoning_questions_prompt(payload: dict, course_language: str = "en") -> str:
+def build_giftquiz_reasoning_questions_prompt(payload: dict, course_language: str = "en", difficulty_level: int = 3) -> str:
     language_name = get_language_name(course_language)
+    difficulty_cfg = get_difficulty_config(difficulty_level)
     data = payload.get("data") or {}
     gift_text = (data.get("gift") or "")[:4000]
     extracted = (data.get("extracted_text") or "")[:4000]
@@ -916,7 +1080,13 @@ def build_giftquiz_reasoning_questions_prompt(payload: dict, course_language: st
         language_name=language_name, course_language=course_language,
         gift_text=gift_text, extracted_block=extracted_block,
         other_block=other_block, prev_block=prev_block,
+        difficulty_block=difficulty_cfg["reasoning_generation_instruction"],
     )
+
+
+def build_validation_system_prompt(difficulty_level: int = 3) -> str:
+    diff_cfg = get_difficulty_config(difficulty_level)
+    return VALIDATION_SYSTEM_PROMPT_TEMPLATE + "\n\n" + diff_cfg["validation_instruction"]
 
 
 def build_validation_user_prompt(
@@ -1062,6 +1232,7 @@ def _init_state():
         "total_score": 0.0,
         "payload_json_text": "",
         "is_reasoning": False,
+        "difficulty_level": 3,     # 1-5, default intermediate
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -1140,7 +1311,29 @@ def main():
 # ---------------------------------------------------------------------------
 
 def _render_setup():
-    st.subheader("1. Select or paste a payload")
+    st.subheader("1. Choose difficulty level")
+
+    difficulty_options = {v["label"]: k for k, v in DIFFICULTY_LEVELS.items()}
+    current_level = st.session_state.get("difficulty_level", 3)
+    current_label = DIFFICULTY_LEVELS[current_level]["label"]
+
+    selected_label = st.select_slider(
+        "Difficulty level",
+        options=list(difficulty_options.keys()),
+        value=current_label,
+        help=(
+            "Level 1 (Beginner): very easy questions, maximum tolerance for imprecise answers. "
+            "Level 5 (Expert): very hard questions, answers must be precise."
+        ),
+    )
+    st.session_state.difficulty_level = difficulty_options[selected_label]
+
+    diff_cfg = get_difficulty_config(st.session_state.difficulty_level)
+    threshold_pct = int(diff_cfg["validation_threshold"] * 100)
+    st.caption(f"Passing threshold for validation: **{threshold_pct}%** match required")
+
+    st.divider()
+    st.subheader("2. Select or paste a payload")
 
     tab_preset, tab_custom = st.tabs(["Preset payloads", "Custom JSON"])
 
@@ -1181,8 +1374,14 @@ def _render_generating(api_key: str, model: str):
     is_reasoning = bool(topic_json.get("reasoningQuiz"))
     st.session_state.is_reasoning = is_reasoning
 
+    difficulty_level = st.session_state.get("difficulty_level", 3)
+    diff_cfg = get_difficulty_config(difficulty_level)
+
     quiz_type = "REASONING" if is_reasoning else "SHORT ANSWER"
-    st.info(f"Generating **{quiz_type}** questions for entity_id={payload.get('entity_id')} …")
+    st.info(
+        f"Generating **{quiz_type}** questions for entity_id={payload.get('entity_id')} "
+        f"| Difficulty: **{diff_cfg['label']}** …"
+    )
 
     if not api_key:
         st.error("Please provide an OpenRouter API key in the sidebar.")
@@ -1193,9 +1392,9 @@ def _render_generating(api_key: str, model: str):
 
     system_prompt = build_system_prompt(course_language)
     if is_reasoning:
-        user_prompt = build_giftquiz_reasoning_questions_prompt(payload, course_language)
+        user_prompt = build_giftquiz_reasoning_questions_prompt(payload, course_language, difficulty_level)
     else:
-        user_prompt = build_giftquiz_questions_prompt(payload, course_language)
+        user_prompt = build_giftquiz_questions_prompt(payload, course_language, difficulty_level)
 
     with st.spinner("Calling LLM to generate questions..."):
         try:
@@ -1277,7 +1476,10 @@ def _render_quiz(api_key: str, validation_model: str):
     except Exception:
         pass
 
-    # Init answer state for this question
+    difficulty_level = st.session_state.get("difficulty_level", 3)
+    diff_cfg = get_difficulty_config(difficulty_level)
+    pass_threshold = diff_cfg["validation_threshold"]
+
     if q_idx not in st.session_state.answers:
         st.session_state.answers[q_idx] = {
             "attempts": 0,
@@ -1295,11 +1497,12 @@ def _render_quiz(api_key: str, validation_model: str):
     st.progress(progress, text=f"Question {q_idx + 1} of {total_q}")
 
     # Quiz config info
-    cols = st.columns(4)
+    cols = st.columns(5)
     cols[0].metric("Min pass score", quiz_cfg.get("min_pass_score", "?"))
     cols[1].metric("Max attempts", max_attempts)
     cols[2].metric("Question score", q["score"])
     cols[3].metric("Attempts used", ans_state["attempts"])
+    cols[4].metric("Difficulty", diff_cfg["label"])
 
     st.divider()
 
@@ -1356,7 +1559,7 @@ def _render_quiz(api_key: str, validation_model: str):
             ans_state["conversation"].append({"role": "user", "content": user_answer.strip()})
 
             # --- Validation call ---
-            val_system = VALIDATION_SYSTEM_PROMPT_TEMPLATE
+            val_system = build_validation_system_prompt(difficulty_level)
             val_user = build_validation_user_prompt(
                 quiz_question=q["question"],
                 user_answer=user_answer.strip(),
@@ -1404,7 +1607,7 @@ def _render_quiz(api_key: str, validation_model: str):
                 ans_state["best_score"] = a_score
                 ans_state["best_validation_score"] = v_score
 
-            if v_score >= 0.8:
+            if v_score >= pass_threshold:
                 ans_state["passed"] = True
                 st.rerun()
                 return
