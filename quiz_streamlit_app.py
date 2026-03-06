@@ -546,6 +546,7 @@ def call_openrouter(
     max_tokens: int = OPENROUTER_MAX_TOKENS,
     temperature: float = 0.3,
     retries: int = 3,
+    extra_body: Optional[dict] = None,
 ) -> tuple[str, str, int, int, float]:
     """Returns (content, model_used, input_tokens, output_tokens, duration_ms)."""
     from openai import OpenAI
@@ -555,7 +556,7 @@ def call_openrouter(
     for attempt in range(retries):
         try:
             t0 = time.perf_counter()
-            resp = client.chat.completions.create(
+            kwargs: dict = dict(
                 model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -565,6 +566,9 @@ def call_openrouter(
                 temperature=temperature,
                 top_p=0.8,
             )
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+            resp = client.chat.completions.create(**kwargs)
             duration_ms = (time.perf_counter() - t0) * 1000
             content = (resp.choices[0].message.content or "").strip()
             usage = getattr(resp, "usage", None)
@@ -858,6 +862,7 @@ def _init_state():
         "payload_json_text": "",
         "is_reasoning": False,
         "difficulty_level": 3,     # 1-5, default intermediate
+        "course_language": "en",   # ISO 639-1 code
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -882,15 +887,15 @@ def main():
 
     api_key = _get_secret("OPENROUTER_API_KEY")
     model = _get_secret("OPENROUTER_MODEL", "google/gemini-2.5-pro")
-    validation_model = model
+    validation_model_default = _get_secret("OPENROUTER_VALIDATION_MODEL", "openai/gpt-4.1-mini")
 
     # ── Sidebar ───────────────────────────────────────────────────────────
     with st.sidebar:
         st.header("Settings")
 
-        model = st.text_input("Model", value=model)
-        validation_model = st.text_input("Validation Model", value=model,
-                                         help="Model used for answer validation & follow-up")
+        model = st.text_input("Generation Model", value=model)
+        validation_model = st.text_input("Validation Model", value=validation_model_default,
+                                         help="Model used for answer validation (default: openai/gpt-4.1-mini)")
 
         st.divider()
 
@@ -936,22 +941,37 @@ def main():
 # ---------------------------------------------------------------------------
 
 def _render_setup():
-    st.subheader("1. Choose difficulty level")
+    st.subheader("1. Course language & difficulty")
 
-    difficulty_options = {v["label"]: k for k, v in DIFFICULTY_LEVELS.items()}
-    current_level = st.session_state.get("difficulty_level", 3)
-    current_label = DIFFICULTY_LEVELS[current_level]["label"]
+    col_lang, col_diff = st.columns(2)
 
-    selected_label = st.select_slider(
-        "Difficulty level",
-        options=list(difficulty_options.keys()),
-        value=current_label,
-        help=(
-            "Level 1 (Beginner): very easy questions, maximum tolerance for imprecise answers. "
-            "Level 5 (Expert): very hard questions, answers must be precise."
-        ),
-    )
-    st.session_state.difficulty_level = difficulty_options[selected_label]
+    with col_lang:
+        lang_options = {v: k for k, v in LANGUAGE_MAP.items()}
+        current_lang_code = st.session_state.get("course_language", "en")
+        current_lang_name = get_language_name(current_lang_code)
+        selected_lang_name = st.selectbox(
+            "Course language",
+            options=list(lang_options.keys()),
+            index=list(lang_options.keys()).index(current_lang_name) if current_lang_name in lang_options else 0,
+            help="Language for question generation and validation feedback",
+        )
+        st.session_state.course_language = lang_options[selected_lang_name]
+
+    with col_diff:
+        difficulty_options = {v["label"]: k for k, v in DIFFICULTY_LEVELS.items()}
+        current_level = st.session_state.get("difficulty_level", 3)
+        current_label = DIFFICULTY_LEVELS[current_level]["label"]
+
+        selected_label = st.select_slider(
+            "Difficulty level",
+            options=list(difficulty_options.keys()),
+            value=current_label,
+            help=(
+                "Level 1 (Beginner): very easy questions, maximum tolerance for imprecise answers. "
+                "Level 5 (Expert): very hard questions, answers must be precise."
+            ),
+        )
+        st.session_state.difficulty_level = difficulty_options[selected_label]
 
     diff_cfg = get_difficulty_config(st.session_state.difficulty_level)
     threshold_pct = int(diff_cfg["validation_threshold"] * 100)
@@ -992,7 +1012,10 @@ def _render_setup():
 
 def _render_generating(api_key: str, model: str):
     payload = json.loads(st.session_state.payload_json_text)
-    course_language = str(payload.get("course_language") or "en").strip() or "en"
+    course_language = st.session_state.get("course_language", "en")
+    if payload.get("course_language"):
+        course_language = str(payload["course_language"]).strip()
+    st.session_state.course_language = course_language
 
     data = payload.get("data") or {}
     topic_json = data.get("topic_json") or {}
@@ -1094,12 +1117,7 @@ def _render_quiz(api_key: str, validation_model: str):
     q = questions[q_idx]
     total_q = len(questions)
     max_attempts = quiz_cfg.get("max_attempts", 3)
-    course_language = "en"
-    try:
-        payload = json.loads(st.session_state.payload_json_text)
-        course_language = str(payload.get("course_language") or "en").strip() or "en"
-    except Exception:
-        pass
+    course_language = st.session_state.get("course_language", "en")
 
     difficulty_level = st.session_state.get("difficulty_level", 3)
     diff_cfg = get_difficulty_config(difficulty_level)
@@ -1198,6 +1216,7 @@ def _render_quiz(api_key: str, validation_model: str):
                 try:
                     raw_val, m_used, in_t, out_t, dur = call_openrouter(
                         val_system, val_user, api_key, validation_model, max_tokens=2000,
+                        extra_body={"reasoning": {"effort": "medium"}},
                     )
                 except Exception as e:
                     st.error(f"Validation API call failed: {e}")
