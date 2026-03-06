@@ -887,7 +887,7 @@ def main():
 
     api_key = _get_secret("OPENROUTER_API_KEY")
     model = _get_secret("OPENROUTER_MODEL", "google/gemini-2.5-pro")
-    validation_model_default = _get_secret("OPENROUTER_VALIDATION_MODEL", "openai/gpt-4.1-mini")
+    validation_model_default = _get_secret("OPENROUTER_VALIDATION_MODEL", "openai/gpt-5.1-chat-latest")
 
     # ── Sidebar ───────────────────────────────────────────────────────────
     with st.sidebar:
@@ -895,7 +895,7 @@ def main():
 
         model = st.text_input("Generation Model", value=model)
         validation_model = st.text_input("Validation Model", value=validation_model_default,
-                                         help="Model used for answer validation (default: openai/gpt-4.1-mini)")
+                                         help="Model used for answer validation (default: openai/gpt-5.1-chat-latest)")
 
         st.divider()
 
