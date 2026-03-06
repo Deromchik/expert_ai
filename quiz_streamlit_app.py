@@ -1012,10 +1012,8 @@ def _render_setup():
 
 def _render_generating(api_key: str, model: str):
     payload = json.loads(st.session_state.payload_json_text)
+    # User's explicit language selection in setup takes priority over payload
     course_language = st.session_state.get("course_language", "en")
-    if payload.get("course_language"):
-        course_language = str(payload["course_language"]).strip()
-    st.session_state.course_language = course_language
 
     data = payload.get("data") or {}
     topic_json = data.get("topic_json") or {}
