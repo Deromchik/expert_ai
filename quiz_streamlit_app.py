@@ -79,7 +79,9 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- If the student demonstrates they understand the general area/topic, give generous credit.\n"
             "- Synonyms, related terms, and imprecise but directionally correct answers should score highly.\n"
             "- A validation_score >= 0.50 should be considered passing for this difficulty level.\n"
-            "- Only give very low scores if the answer is completely unrelated or fundamentally wrong.\n"
+            "- Only give very low scores (< 0.30) if the answer is completely unrelated or fundamentally wrong.\n"
+            "- IMPORTANT: At beginner level, covering even 1-2 core ideas from the reference answer\n"
+            "  in a generally correct way is enough for a passing score.\n"
         ),
     },
     2: {
@@ -108,7 +110,8 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- Accept answers that capture the main idea even if details are missing.\n"
             "- Related terms and partially correct answers should receive partial credit.\n"
             "- A validation_score >= 0.60 should be considered passing for this difficulty level.\n"
-            "- Penalize only clearly incorrect or unrelated answers.\n"
+            "- Penalize only clearly incorrect or unrelated answers (score < 0.30).\n"
+            "- If the answer covers the main idea correctly, it should pass even without full detail.\n"
         ),
     },
     3: {
@@ -132,11 +135,12 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
         ),
         "validation_instruction": (
             "DIFFICULTY ADJUSTMENT (Level 3 — Intermediate):\n"
-            "The quiz difficulty is set to INTERMEDIATE level. Apply standard scoring.\n"
+            "The quiz difficulty is set to INTERMEDIATE level. Apply balanced scoring.\n"
             "- Answers should demonstrate understanding of the concept, not just recall.\n"
             "- Accept semantically equivalent answers with minor imprecisions.\n"
             "- A validation_score >= 0.70 should be considered passing for this difficulty level.\n"
-            "- Partial credit for answers that show understanding but miss important nuances.\n"
+            "- Partial credit (0.50-0.69) for answers that show understanding but miss important nuances.\n"
+            "- If the student covers all core ideas correctly, give a passing score even if depth varies.\n"
         ),
     },
     4: {
@@ -160,11 +164,16 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
         ),
         "validation_instruction": (
             "DIFFICULTY ADJUSTMENT (Level 4 — Advanced):\n"
-            "The quiz difficulty is set to ADVANCED level. Apply strict scoring.\n"
-            "- Answers must be precise and demonstrate clear understanding.\n"
+            "The quiz difficulty is set to ADVANCED level.\n"
+            "- Answers must demonstrate clear understanding and cover the core concepts.\n"
             "- Semantically equivalent answers are accepted, but vague or overly general answers should score lower.\n"
             "- A validation_score >= 0.80 should be considered passing for this difficulty level.\n"
-            "- Require correct key terms and accurate relationships between concepts.\n"
+            "- CRITICAL: If the answer addresses ALL CORE ideas from the reference answer and the reasoning is\n"
+            "  logically sound, you MUST give validation_score >= 0.80. Do NOT lower the score because the student\n"
+            "  did not mention edge cases, ancillary details, or supplementary examples that go BEYOND the core ideas.\n"
+            "- Strictness applies to INCORRECT or MISLEADING information, NOT to stylistic differences or minor depth gaps.\n"
+            "- You may expect correct use of key terms, but do NOT require the exact terms from the reference answer\n"
+            "  if the student conveys the same meaning with equivalent language.\n"
         ),
     },
     5: {
@@ -190,12 +199,17 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
         ),
         "validation_instruction": (
             "DIFFICULTY ADJUSTMENT (Level 5 — Expert):\n"
-            "The quiz difficulty is set to EXPERT level. Apply very strict scoring.\n"
-            "- Answers must be precise, technically correct, and comprehensive.\n"
-            "- Only accept answers that demonstrate deep understanding.\n"
+            "The quiz difficulty is set to EXPERT level.\n"
+            "- Answers must be precise, technically correct, and cover the core concepts thoroughly.\n"
             "- A validation_score >= 0.88 should be considered passing for this difficulty level.\n"
             "- Vague, incomplete, or imprecise answers should score significantly lower.\n"
-            "- Require correct use of terminology and accurate conceptual relationships.\n"
+            "- CRITICAL: Even at expert level, if the student addresses ALL MAIN concepts from the reference answer\n"
+            "  correctly and demonstrates sound, well-structured reasoning, you MUST give validation_score >= 0.88.\n"
+            "  Do NOT penalize for omitting minor supplementary details, edge cases not central to the question,\n"
+            "  or for using different (but accurate) terminology.\n"
+            "- Penalize ONLY for: (a) factually incorrect statements, (b) missing CORE elements that are essential\n"
+            "  to the answer, (c) flawed reasoning logic, (d) fundamental misunderstanding of the topic.\n"
+            "- Do NOT invent extra requirements beyond what is in the reference answer to fail the student.\n"
         ),
     },
 }
@@ -391,28 +405,49 @@ You must always evaluate the student's understanding based on ALL their answers 
 ------------------------------------------------
 SCORING LOGIC
 ------------------------------------------------
-You must compute a normalized validation_score in [0.0, 1.0] and a scaled answer_score:
+You must compute a normalized validation_score in [0.0, 1.0] and a scaled answer_score.
 
-- validation_score:
-- 0.0 = completely incorrect / unrelated / fundamentally wrong.
-- 0.5-0.79 = partial understanding (some important parts missing or incorrect).
-- >= 0.8 = answer is acceptable overall (semantically correct and sufficiently complete).
+STEP 1: Identify KEY IDEAS from correct_answers.
+- Break the correct answer(s) into distinct KEY IDEAS (core concepts, steps, or arguments).
+- Count total number of key ideas (N).
+
+STEP 2: Evaluate the COMBINED ANSWER against each key idea.
+- For each key idea, classify it as: COVERED, PARTIALLY COVERED, or MISSING/WRONG.
+- Also check: does the answer contain any FACTUALLY INCORRECT statements about the core topic?
+
+STEP 3: Apply the MANDATORY scoring rules below.
+
+=== MANDATORY SCORING RULES (strict — you MUST follow these) ===
+
+RULE 1 — FUNDAMENTALLY INCORRECT:
+If the answer contains factually wrong claims about the core topic, demonstrates a fundamental
+misunderstanding of the question's subject, or proposes actions that contradict best practices:
+→ validation_score MUST be ≤ 0.30
+(Even if some correct points are present, fundamental errors cap the score.)
+
+RULE 2 — INCOMPLETE / SUPERFICIAL (less than half of key ideas covered):
+If the answer is on the right topic but covers FEWER THAN HALF of the key ideas from correct_answers,
+OR if it only states obvious/trivial points without the substance required:
+→ validation_score MUST be ≤ 0.50
+
+RULE 3 — PARTIAL (more than half but not all key ideas covered):
+If the answer covers MORE THAN HALF of the key ideas but is still missing 1-2 important elements,
+or covers ideas only at a surface level without sufficient depth:
+→ validation_score MUST be in [0.50, 0.79]
+
+RULE 4 — CORRECT / SUFFICIENTLY COMPLETE:
+If the answer covers ALL or NEARLY ALL key ideas from correct_answers AND the reasoning is
+logically sound (even if worded differently, uses different examples, or varies in style):
+→ validation_score MUST be ≥ 0.80
+IMPORTANT: Do NOT penalize for differences in phrasing, writing style, or order of points.
+Do NOT require the student to mention every minor detail from the reference answer.
+The standard is: does the student demonstrate understanding of the CORE concepts?
+
+=== END OF MANDATORY SCORING RULES ===
 
 - answer_score:
 - answer_score = validation_score * max_possible_score
 - MUST NOT exceed max_possible_score.
-
-Interpretation guide:
-- validation_score >= 0.8:
-- The COMBINED ANSWER is correct enough to be considered a valid solution.
-- Small omissions or minor phrasing issues are acceptable.
-
-- 0.5 <= validation_score < 0.8:
-- There is meaningful partial understanding, but one or more important elements are missing or wrong.
-- The answer should be considered not yet correct.
-
-- validation_score < 0.5:
-- Major misunderstanding or almost no overlap with the required ideas.
 
 ------------------------------------------------
 USER INTENT CLASSIFICATION (CURRENT MESSAGE)
@@ -445,20 +480,25 @@ Intent does NOT change how you compute validation_score:
 - user_intent only describes what the student is doing right now.
 
 ------------------------------------------------
-VALIDATION_ERROR (WHEN validation_score < 0.8)
+VALIDATION_ERROR (WHEN answer does not pass)
 ------------------------------------------------
-If validation_score < 0.8, you MUST populate validation_error with a short, specific explanation in the target language. It MUST:
+If validation_score is BELOW the passing threshold, you MUST populate validation_error with a short,
+specific explanation in the target language. The explanation MUST:
 
-1) Briefly describe, in natural language, what the student's COMBINED ANSWER is doing relative to the quiz question:
-- e.g., mention if they are on the right track, or if they are focusing on a wrong aspect.
+1) Start by classifying the problem type:
+- "INCORRECT:" — if the answer contains factually wrong information (validation_score ≤ 0.30)
+- "INCOMPLETE:" — if the answer is on the right track but missing key elements (validation_score 0.31-0.79)
+This classification helps the student understand what kind of improvement is needed.
 
-2) Clearly state the 1-2 most important missing or incorrect elements, WITHOUT revealing the full correct answer.
-- Example style (English; do not copy verbatim):
-    - "Your answer touches on the right topic, but it does not explain how X relates to Y."
-    - "You correctly mention A, but you do not address B, which is essential for a complete answer."
+2) Briefly describe what the student got right (if anything) and what is missing or wrong:
+- Be specific: name the 1-2 most important missing or incorrect elements.
+- Do NOT use vague phrases like "add more details", "elaborate further", "be more specific"
+  without saying WHICH specific aspect or concept is missing.
 
-3) Indicate why the answer cannot be considered correct yet:
-- Explicitly connect the missing/incorrect elements to the failure to pass validation.
+3) Example styles (do not copy verbatim):
+- "INCORRECT: Your answer suggests doing X, but this contradicts best practices because..."
+- "INCOMPLETE: You correctly describe the first step (analysis), but you do not address how to communicate
+  the decision to stakeholders, which is a key part of the expected answer."
 
 4) Align with user_intent when relevant:
 - If user_intent = "hint_request", mention that the student is asking for hints so a follow-up agent can respond accordingly.
@@ -466,10 +506,11 @@ If validation_score < 0.8, you MUST populate validation_error with a short, spec
 
 Do NOT:
 - Reveal the correct answer or provide a full solution.
-- Use vague statements like "add more details" without specifying which aspect.
+- Use vague statements without specifying which aspect is missing.
 - Produce a hostile or discouraging tone.
+- Invent requirements that are NOT in the reference correct_answers.
 
-If validation_score >= 0.8, set validation_error to an empty string "".
+If validation_score passes the threshold, set validation_error to an empty string "".
 
 ------------------------------------------------
 OUTPUT FORMAT (STRICT JSON)
