@@ -483,22 +483,27 @@ Intent does NOT change how you compute validation_score:
 VALIDATION_ERROR (WHEN answer does not pass)
 ------------------------------------------------
 If validation_score is BELOW the passing threshold, you MUST populate validation_error with a short,
-specific explanation in the target language. The explanation MUST:
+specific explanation in the target language.
+
+=== ANTI-SPOILER RULES (CRITICAL — follow strictly) ===
+Your feedback must GUIDE the student to think further, NOT hand them the missing parts of the answer.
+You must NEVER include specific actions, steps, terms, or solutions from the correct_answers that the
+student has not already mentioned. Instead, describe the CATEGORY or DIRECTION of what is missing.
+
+The explanation MUST:
 
 1) Start by classifying the problem type:
 - "INCORRECT:" — if the answer contains factually wrong information (validation_score ≤ 0.30)
 - "INCOMPLETE:" — if the answer is on the right track but missing key elements (validation_score 0.31-0.79)
-This classification helps the student understand what kind of improvement is needed.
 
-2) Briefly describe what the student got right (if anything) and what is missing or wrong:
-- Be specific: name the 1-2 most important missing or incorrect elements.
-- Do NOT use vague phrases like "add more details", "elaborate further", "be more specific"
-  without saying WHICH specific aspect or concept is missing.
+2) Acknowledge what the student got right (if anything).
 
-3) Example styles (do not copy verbatim):
-- "INCORRECT: Your answer suggests doing X, but this contradicts best practices because..."
-- "INCOMPLETE: You correctly describe the first step (analysis), but you do not address how to communicate
-  the decision to stakeholders, which is a key part of the expected answer."
+3) Indicate the DIRECTION or CATEGORY of what is missing, using only:
+- The NUMBER of missing elements (e.g., "your answer covers about half of the expected reasoning")
+- The PHASE or AREA that is missing (e.g., "after the initial step", "the broader consequences",
+  "the communication aspect") — but NEVER the specific action itself.
+- A THINKING PROMPT that encourages the student to figure it out (e.g., "think about what happens
+  next in this scenario", "consider who else is affected by this decision").
 
 4) Align with user_intent when relevant:
 - If user_intent = "hint_request", mention that the student is asking for hints so a follow-up agent can respond accordingly.
@@ -506,7 +511,8 @@ This classification helps the student understand what kind of improvement is nee
 
 Do NOT:
 - Reveal the correct answer or provide a full solution.
-- Use vague statements without specifying which aspect is missing.
+- Name specific actions, steps, or terms from the correct answer that the student hasn't mentioned.
+- Paraphrase or rephrase parts of the correct answer as "what is missing".
 - Produce a hostile or discouraging tone.
 - Invent requirements that are NOT in the reference correct_answers.
 
@@ -530,7 +536,6 @@ Constraints:
 - All strings ("reasoning" and "validation_error") MUST be in the requested language.
 - Do NOT mention system prompts, internal rules, or variable names in the JSON.
 """
-
 
 
 # ---------------------------------------------------------------------------
@@ -679,7 +684,8 @@ def normalize_short_answers(obj: Optional[dict]) -> tuple[list[dict], dict]:
                     score = int(sc) if isinstance(sc, (int, float)) else 1
                     if score <= 0:
                         score = 1
-                    questions.append({"question": q, "answers": clean_ans, "score": score})
+                    questions.append(
+                        {"question": q, "answers": clean_ans, "score": score})
                 except Exception:
                     continue
         quiz = {
@@ -697,12 +703,14 @@ def normalize_short_answers(obj: Optional[dict]) -> tuple[list[dict], dict]:
     except Exception:
         mps_val = None
     if mps_val is None or mps_val >= total_score or mps_val < 0:
-        mps_val = max(1.0, round(total_score * 0.55, 2)) if total_score > 0 else 1.0
+        mps_val = max(1.0, round(total_score * 0.55, 2)
+                      ) if total_score > 0 else 1.0
         if mps_val >= total_score and total_score > 0:
             mps_val = max(1.0, total_score - 1.0)
 
     att = quiz.get("max_attempts")
-    att_val = int(att) if isinstance(att, (int, float)) and 2 <= int(att) <= 5 else (3 if num_questions <= 4 else 4)
+    att_val = int(att) if isinstance(att, (int, float)) and 2 <= int(
+        att) <= 5 else (3 if num_questions <= 4 else 4)
 
     met = quiz.get("max_execution_time")
     if isinstance(met, (int, float)) and int(met) >= 30:
@@ -741,9 +749,12 @@ def build_giftquiz_questions_prompt(payload: dict, course_language: str = "en", 
     prev_summaries = data.get("previous_lesson_summaries") or []
     prev_text = "\n".join(str(s)[:1000] for s in prev_summaries[:20])
 
-    extracted_block = PROMPT_GIFTQUIZ_EXTRACTED_BLOCK_TEMPLATE.format(extracted=extracted) if extracted else ""
-    other_block = PROMPT_GIFTQUIZ_OTHER_BLOCK_TEMPLATE.format(other_texts="\n".join(other_texts)) if other_texts else ""
-    prev_block = PROMPT_GIFTQUIZ_PREV_BLOCK_TEMPLATE.format(prev_text=prev_text) if prev_text else ""
+    extracted_block = PROMPT_GIFTQUIZ_EXTRACTED_BLOCK_TEMPLATE.format(
+        extracted=extracted) if extracted else ""
+    other_block = PROMPT_GIFTQUIZ_OTHER_BLOCK_TEMPLATE.format(
+        other_texts="\n".join(other_texts)) if other_texts else ""
+    prev_block = PROMPT_GIFTQUIZ_PREV_BLOCK_TEMPLATE.format(
+        prev_text=prev_text) if prev_text else ""
 
     return PROMPT_GIFTQUIZ_QUESTIONS_TEMPLATE.format(
         language_name=language_name, course_language=course_language,
@@ -769,9 +780,12 @@ def build_giftquiz_reasoning_questions_prompt(payload: dict, course_language: st
     prev_summaries = data.get("previous_lesson_summaries") or []
     prev_text = "\n".join(str(s)[:1000] for s in prev_summaries[:20])
 
-    extracted_block = PROMPT_GIFTQUIZ_EXTRACTED_BLOCK_TEMPLATE.format(extracted=extracted) if extracted else ""
-    other_block = PROMPT_GIFTQUIZ_OTHER_BLOCK_TEMPLATE.format(other_texts="\n".join(other_texts)) if other_texts else ""
-    prev_block = PROMPT_GIFTQUIZ_PREV_BLOCK_TEMPLATE.format(prev_text=prev_text) if prev_text else ""
+    extracted_block = PROMPT_GIFTQUIZ_EXTRACTED_BLOCK_TEMPLATE.format(
+        extracted=extracted) if extracted else ""
+    other_block = PROMPT_GIFTQUIZ_OTHER_BLOCK_TEMPLATE.format(
+        other_texts="\n".join(other_texts)) if other_texts else ""
+    prev_block = PROMPT_GIFTQUIZ_PREV_BLOCK_TEMPLATE.format(
+        prev_text=prev_text) if prev_text else ""
 
     return PROMPT_GIFTQUIZ_REASONING_QUESTIONS_TEMPLATE.format(
         language_name=language_name, course_language=course_language,
@@ -805,12 +819,9 @@ def build_validation_user_prompt(
     )
 
 
-
-
 # ---------------------------------------------------------------------------
 # DEFAULT PAYLOADS (from prompt_review_runner_2.py — only GiftQuiz topics)
 # ---------------------------------------------------------------------------
-
 DEFAULT_PAYLOADS: list[dict] = [
     {
         "label": "Quiz #1283 — Quantum Computer (reasoning)",
@@ -827,10 +838,14 @@ DEFAULT_PAYLOADS: list[dict] = [
             "topic_json": {"reasoningQuiz": True},
             "questions_count": 4,
             "questions": [
-                {"question": "What type of computer performs calculations using the principles of quantum mechanics? {=Quantum computer=A quantum computer}", "type": "short_answers", "max_score": 25},
-                {"question": "What is the basic unit of information in a quantum computer, which can represent more than just 0 or 1? {=Qubit=Qubits}", "type": "short_answers", "max_score": 25},
-                {"question": "In contrast to quantum computers, what is the basic unit of information in classical computers? {=Bit=Bits}", "type": "short_answers", "max_score": 25},
-                {"question": "What field of physics provides the principles that quantum computers use for calculations? {=Quantum mechanics=The principles of quantum mechanics}", "type": "short_answers", "max_score": 25},
+                {"question": "What type of computer performs calculations using the principles of quantum mechanics? {=Quantum computer=A quantum computer}",
+                    "type": "short_answers", "max_score": 25},
+                {"question": "What is the basic unit of information in a quantum computer, which can represent more than just 0 or 1? {=Qubit=Qubits}",
+                    "type": "short_answers", "max_score": 25},
+                {"question": "In contrast to quantum computers, what is the basic unit of information in classical computers? {=Bit=Bits}",
+                    "type": "short_answers", "max_score": 25},
+                {"question": "What field of physics provides the principles that quantum computers use for calculations? {=Quantum mechanics=The principles of quantum mechanics}",
+                    "type": "short_answers", "max_score": 25},
             ],
             "lesson_other_topics": [
                 {
@@ -861,11 +876,16 @@ DEFAULT_PAYLOADS: list[dict] = [
             "gift": "theProject",
             "questions_count": 5,
             "questions": [
-                {"question": "What term describes the mathematical representation of a quantum system that holds all possible information about it? {=Quantum state}", "type": "short_answers", "max_score": 10},
-                {"question": "What is the basic unit of quantum information, analogous to a bit in classical computing? {=Qubit=Quantum bit}", "type": "short_answers", "max_score": 10},
-                {"question": "What quantum principle allows a qubit to be in a combination of both 0 and 1 states at the same time? {=Superposition}", "type": "short_answers", "max_score": 10},
-                {"question": "What is the name for the quantum phenomenon where multiple qubits are linked and their states are correlated, no matter how far apart they are? {=Entanglement=Quantum entanglement}", "type": "short_answers", "max_score": 10},
-                {"question": "According to the lesson material, what is one mathematical object used to represent a quantum state? {=State vector=Wavefunction}", "type": "short_answers", "max_score": 10},
+                {"question": "What term describes the mathematical representation of a quantum system that holds all possible information about it? {=Quantum state}",
+                    "type": "short_answers", "max_score": 10},
+                {"question": "What is the basic unit of quantum information, analogous to a bit in classical computing? {=Qubit=Quantum bit}",
+                    "type": "short_answers", "max_score": 10},
+                {"question": "What quantum principle allows a qubit to be in a combination of both 0 and 1 states at the same time? {=Superposition}",
+                    "type": "short_answers", "max_score": 10},
+                {"question": "What is the name for the quantum phenomenon where multiple qubits are linked and their states are correlated, no matter how far apart they are? {=Entanglement=Quantum entanglement}",
+                    "type": "short_answers", "max_score": 10},
+                {"question": "According to the lesson material, what is one mathematical object used to represent a quantum state? {=State vector=Wavefunction}",
+                    "type": "short_answers", "max_score": 10},
             ],
             "lesson_other_topics": [
                 {
@@ -898,7 +918,8 @@ def _init_state():
         "questions": [],           # generated questions
         "quiz_cfg": {},            # min_pass_score, max_attempts, max_execution_time
         "current_q_idx": 0,
-        "answers": {},             # {q_idx: {"user_answer": str, "result": dict, "attempts": int, "conversation": []}}
+        # {q_idx: {"user_answer": str, "result": dict, "attempts": int, "conversation": []}}
+        "answers": {},
         "total_score": 0.0,
         "payload_json_text": "",
         "is_reasoning": False,
@@ -928,7 +949,8 @@ def main():
 
     api_key = _get_secret("OPENROUTER_API_KEY")
     model = _get_secret("OPENROUTER_MODEL", "google/gemini-2.5-pro")
-    validation_model_default = _get_secret("OPENROUTER_VALIDATION_MODEL", "openai/gpt-4o")
+    validation_model_default = _get_secret(
+        "OPENROUTER_VALIDATION_MODEL", "openai/gpt-4o")
 
     # ── Sidebar ───────────────────────────────────────────────────────────
     with st.sidebar:
@@ -945,7 +967,8 @@ def main():
         st.caption(f"{len(st.session_state.api_logs)} call(s) recorded")
 
         if st.session_state.api_logs:
-            logs_json = json.dumps(st.session_state.api_logs, ensure_ascii=False, indent=2)
+            logs_json = json.dumps(
+                st.session_state.api_logs, ensure_ascii=False, indent=2)
             st.download_button(
                 "Download full logs (JSON)",
                 data=logs_json,
@@ -993,13 +1016,15 @@ def _render_setup():
         selected_lang_name = st.selectbox(
             "Course language",
             options=list(lang_options.keys()),
-            index=list(lang_options.keys()).index(current_lang_name) if current_lang_name in lang_options else 0,
+            index=list(lang_options.keys()).index(
+                current_lang_name) if current_lang_name in lang_options else 0,
             help="Language for question generation and validation feedback",
         )
         st.session_state.course_language = lang_options[selected_lang_name]
 
     with col_diff:
-        difficulty_options = {v["label"]: k for k, v in DIFFICULTY_LEVELS.items()}
+        difficulty_options = {v["label"]: k for k,
+                              v in DIFFICULTY_LEVELS.items()}
         current_level = st.session_state.get("difficulty_level", 3)
         current_label = DIFFICULTY_LEVELS[current_level]["label"]
 
@@ -1016,7 +1041,8 @@ def _render_setup():
 
     diff_cfg = get_difficulty_config(st.session_state.difficulty_level)
     threshold_pct = int(diff_cfg["validation_threshold"] * 100)
-    st.caption(f"Passing threshold for validation: **{threshold_pct}%** match required")
+    st.caption(
+        f"Passing threshold for validation: **{threshold_pct}%** match required")
 
     st.divider()
     st.subheader("2. Select or paste a payload")
@@ -1030,7 +1056,8 @@ def _render_setup():
         selected = DEFAULT_PAYLOADS[idx]
         st.json(selected, expanded=False)
         if st.button("Use this payload", key="btn_preset"):
-            st.session_state.payload_json_text = json.dumps(selected, ensure_ascii=False, indent=2)
+            st.session_state.payload_json_text = json.dumps(
+                selected, ensure_ascii=False, indent=2)
             st.session_state.stage = "generating"
             st.rerun()
 
@@ -1040,7 +1067,8 @@ def _render_setup():
         if st.button("Use custom payload", key="btn_custom"):
             try:
                 parsed = json.loads(custom)
-                st.session_state.payload_json_text = json.dumps(parsed, ensure_ascii=False, indent=2)
+                st.session_state.payload_json_text = json.dumps(
+                    parsed, ensure_ascii=False, indent=2)
                 st.session_state.stage = "generating"
                 st.rerun()
             except json.JSONDecodeError as e:
@@ -1079,9 +1107,11 @@ def _render_generating(api_key: str, model: str):
 
     system_prompt = build_system_prompt(course_language)
     if is_reasoning:
-        user_prompt = build_giftquiz_reasoning_questions_prompt(payload, course_language, difficulty_level)
+        user_prompt = build_giftquiz_reasoning_questions_prompt(
+            payload, course_language, difficulty_level)
     else:
-        user_prompt = build_giftquiz_questions_prompt(payload, course_language, difficulty_level)
+        user_prompt = build_giftquiz_questions_prompt(
+            payload, course_language, difficulty_level)
 
     with st.spinner("Calling LLM to generate questions..."):
         try:
@@ -1204,21 +1234,24 @@ def _render_quiz(api_key: str, validation_model: str):
 
     # Check limits
     if ans_state["passed"]:
-        st.success(f"Correct! Score: {ans_state['best_score']:.1f}/{q['score']}")
+        st.success(
+            f"Correct! Score: {ans_state['best_score']:.1f}/{q['score']}")
         if st.button("Next question", key=f"next_{q_idx}"):
             st.session_state.current_q_idx = q_idx + 1
             st.rerun()
         return
 
     if ans_state["attempts"] >= max_attempts:
-        st.warning(f"Max attempts reached. Best score: {ans_state['best_score']:.1f}/{q['score']}")
+        st.warning(
+            f"Max attempts reached. Best score: {ans_state['best_score']:.1f}/{q['score']}")
         if st.button("Next question", key=f"next_{q_idx}"):
             st.session_state.current_q_idx = q_idx + 1
             st.rerun()
         return
 
     # Answer input
-    user_answer = st.text_area("Your answer:", key=f"answer_input_{q_idx}_{ans_state['attempts']}", height=100)
+    user_answer = st.text_area(
+        "Your answer:", key=f"answer_input_{q_idx}_{ans_state['attempts']}", height=100)
 
     col_submit, col_skip = st.columns([1, 1])
 
@@ -1238,7 +1271,8 @@ def _render_quiz(api_key: str, validation_model: str):
                 return
 
             ans_state["attempts"] += 1
-            ans_state["conversation"].append({"role": "user", "content": user_answer.strip()})
+            ans_state["conversation"].append(
+                {"role": "user", "content": user_answer.strip()})
 
             # --- Validation call ---
             val_system = build_validation_system_prompt(difficulty_level)
@@ -1296,7 +1330,8 @@ def _render_quiz(api_key: str, validation_model: str):
                 return
 
             feedback = validation_error or "Try again!"
-            ans_state["conversation"].append({"role": "assistant", "content": feedback})
+            ans_state["conversation"].append(
+                {"role": "assistant", "content": feedback})
             st.rerun()
 
 
@@ -1312,7 +1347,8 @@ def _render_results():
     st.subheader("Quiz Results")
 
     total_possible = sum(q["score"] for q in questions)
-    total_earned = sum(answers.get(i, {}).get("best_score", 0.0) for i in range(len(questions)))
+    total_earned = sum(answers.get(i, {}).get("best_score", 0.0)
+                       for i in range(len(questions)))
     min_pass = quiz_cfg.get("min_pass_score", 0)
     passed = total_earned >= min_pass
 
@@ -1330,8 +1366,10 @@ def _render_results():
 
     for i, q in enumerate(questions):
         ans = answers.get(i, {})
-        status = "Passed" if ans.get("passed") else ("Skipped" if ans.get("skipped") else "Not passed")
-        icon = {"Passed": "✅", "Skipped": "⏭️", "Not passed": "❌"}.get(status, "")
+        status = "Passed" if ans.get("passed") else (
+            "Skipped" if ans.get("skipped") else "Not passed")
+        icon = {"Passed": "✅", "Skipped": "⏭️",
+                "Not passed": "❌"}.get(status, "")
 
         with st.expander(f"{icon} Q{i+1}: {q['question'][:80]}... — {status} ({ans.get('best_score', 0):.1f}/{q['score']})"):
             st.markdown(f"**Correct answers:** {', '.join(q['answers'])}")
@@ -1349,8 +1387,10 @@ def _render_results():
     # Logs download (also in sidebar, but convenient here too)
     if st.session_state.api_logs:
         st.subheader("API Logs")
-        st.caption(f"{len(st.session_state.api_logs)} API call(s) logged during this session.")
-        logs_json = json.dumps(st.session_state.api_logs, ensure_ascii=False, indent=2)
+        st.caption(
+            f"{len(st.session_state.api_logs)} API call(s) logged during this session.")
+        logs_json = json.dumps(st.session_state.api_logs,
+                               ensure_ascii=False, indent=2)
         st.download_button(
             "Download full pipeline logs (JSON)",
             data=logs_json,
@@ -1361,7 +1401,8 @@ def _render_results():
 
         with st.expander("Preview logs"):
             for i, log in enumerate(st.session_state.api_logs):
-                st.markdown(f"**{i+1}. [{log['phase']}]** — {log['timestamp']} — {log['usage']['input_tokens']}in/{log['usage']['output_tokens']}out — {log['duration_ms']}ms")
+                st.markdown(
+                    f"**{i+1}. [{log['phase']}]** — {log['timestamp']} — {log['usage']['input_tokens']}in/{log['usage']['output_tokens']}out — {log['duration_ms']}ms")
 
     if st.button("Start new quiz"):
         for k in list(st.session_state.keys()):
