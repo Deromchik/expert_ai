@@ -79,7 +79,7 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- If the student demonstrates they understand the general area/topic, give generous credit.\n"
             "- Synonyms, related terms, and imprecise but directionally correct answers should score highly.\n"
             "- A validation_score >= 0.50 should be considered passing for this difficulty level.\n"
-            "- Only give very low scores (< 0.30) if the answer is completely unrelated or fundamentally wrong.\n"
+            "- However, do NOT give credit for random keywords if the answer makes no sense.\n"
             "- IMPORTANT: At beginner level, covering even 1-2 core ideas from the reference answer\n"
             "  in a generally correct way is enough for a passing score.\n"
         ),
@@ -152,6 +152,7 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- Questions should test deeper understanding, analysis, and application.\n"
             "- Include questions about edge cases, exceptions, or subtle distinctions.\n"
             "- Require precise answers that demonstrate thorough understanding.\n"
+            "- CRITICAL: Base the complexity ONLY on the provided materials. Do NOT invent concepts, frameworks, or facts that are not explicitly present in the text.\n"
             "- Provide 2-3 acceptable answer variants (less tolerance for imprecision).\n\n"
         ),
         "reasoning_generation_instruction": (
@@ -160,6 +161,8 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- Scenarios should involve complex trade-offs and multiple interacting factors.\n"
             "- Require synthesis of several concepts from the lesson.\n"
             "- The expected reasoning should be thorough and well-structured.\n"
+            "- Provide a structured answer (approx. 4-6 sentences) explaining the trade-offs and the rationale.\n"
+            "- CRITICAL: Base the complexity ONLY on the provided materials. Do NOT invent concepts, frameworks, or facts that are not explicitly present in the text.\n"
             "- Include scenarios with non-obvious solutions that require critical analysis.\n\n"
         ),
         "validation_instruction": (
@@ -172,8 +175,7 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "  logically sound, you MUST give validation_score >= 0.80. Do NOT lower the score because the student\n"
             "  did not mention edge cases, ancillary details, or supplementary examples that go BEYOND the core ideas.\n"
             "- Strictness applies to INCORRECT or MISLEADING information, NOT to stylistic differences or minor depth gaps.\n"
-            "- You may expect correct use of key terms, but do NOT require the exact terms from the reference answer\n"
-            "  if the student conveys the same meaning with equivalent language.\n"
+            "- Do NOT be pedantic. If the student captures the ESSENCE of the complex concept, pass it.\n"
         ),
     },
     5: {
@@ -185,6 +187,7 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- Questions should test synthesis, critical evaluation, and nuanced understanding.\n"
             "- Include questions about implications, limitations, and advanced applications.\n"
             "- Require highly precise, technically accurate answers.\n"
+            "- CRITICAL: Base the complexity ONLY on the provided materials. Do NOT invent concepts, frameworks, or facts that are not explicitly present in the text.\n"
             "- Provide only 1-2 acceptable answer variants (very strict matching).\n"
             "- Questions may combine concepts from current and previous lessons.\n\n"
         ),
@@ -195,6 +198,8 @@ DIFFICULTY_LEVELS: dict[int, dict] = {
             "- Require deep synthesis of concepts from across all provided materials.\n"
             "- The expected reasoning should demonstrate expert-level analysis and judgment.\n"
             "- Include scenarios with ambiguity where the quality of reasoning matters most.\n"
+            "- Provide a structured answer (approx. 4-6 sentences) explaining the trade-offs and the rationale.\n"
+            "- CRITICAL: Base the complexity ONLY on the provided materials. Do NOT invent concepts, frameworks, or facts that are not explicitly present in the text.\n"
             "- Expect thorough consideration of consequences and edge cases.\n\n"
         ),
         "validation_instruction": (
@@ -388,7 +393,8 @@ You must always evaluate the student's understanding based on ALL their answers 
 
 1) Build a COMBINED ANSWER:
 - Collect all previous user messages in conversation_history that contain answer attempts.
-- Combine them conceptually with the current user_answer into a single answer (do NOT output this; it is only for evaluation).
+- Combine them conceptually with the current user_answer into a single answer.
+- IMPORTANT: If the student explicitly corrects a previous mistake (e.g., "Oh wait, I meant X, not Y"), prioritize the correction.
 
 2) Compare COMBINED ANSWER with correct_answers:
 - Focus on semantic equivalence, not exact wording.
@@ -419,18 +425,18 @@ STEP 3: Apply the MANDATORY scoring rules below.
 
 === MANDATORY SCORING RULES (strict — you MUST follow these) ===
 
-RULE 1 — FUNDAMENTALLY INCORRECT:
-If the answer contains factually wrong claims about the core topic, demonstrates a fundamental
-misunderstanding of the question's subject, or proposes actions that contradict best practices:
-→ validation_score MUST be ≤ 0.30
-(Even if some correct points are present, fundamental errors cap the score.)
+RULE 1 — FUNDAMENTALLY INCORRECT / KEYWORD STUFFING:
+If the answer contains factually wrong claims, demonstrates a fundamental misunderstanding,
+OR if it merely repeats keywords from the question without forming a coherent, correct statement:
+→ validation_score MUST be ≤ 0.20
+(Do NOT give credit for "matching words" if the meaning is wrong or absent.)
 
-RULE 2 — INCOMPLETE / SUPERFICIAL (less than half of key ideas covered):
-If the answer is on the right topic but covers FEWER THAN HALF of the key ideas from correct_answers,
+RULE 2 — INCOMPLETE / SUPERFICIAL:
+If the answer is on the right topic but covers FEWER THAN HALF of the key ideas,
 OR if it only states obvious/trivial points without the substance required:
 → validation_score MUST be ≤ 0.50
 
-RULE 3 — PARTIAL (more than half but not all key ideas covered):
+RULE 3 — PARTIAL:
 If the answer covers MORE THAN HALF of the key ideas but is still missing 1-2 important elements,
 or covers ideas only at a surface level without sufficient depth:
 → validation_score MUST be in [0.50, 0.79]
@@ -455,29 +461,13 @@ USER INTENT CLASSIFICATION (CURRENT MESSAGE)
 You MUST classify the student's current message (user_answer) into one of:
 
 - "answer_attempt"
-- The student is primarily trying to answer the quiz question (even if the answer is wrong, short, or incomplete).
-
-- "hint_request"
-- The student is asking for help, hints, clues, or the answer itself.
-- Examples (in any language): "give me a hint", "help me", "what's the answer", "tell me", "how to solve this".
-
-- "clarification_request"
-- The student is asking what the question means or asking to clarify the concept or task.
-- Examples: "what does this question mean?", "I don't understand the question", "can you explain this term?".
-
+- "hint_request" (explicit requests for help)
+- "clarification_request" (questions about the task/concept)
 - "off_topic"
-- The message is clearly unrelated, extremely short/small talk, or does not contribute to solving the question.
 
 INTENT RULES:
-- Base user_intent primarily on the CURRENT message, but use conversation_history for context.
-- If the current message is mostly a question about the task or concept, prefer "clarification_request".
-- If the current message explicitly asks for a hint or the answer, choose "hint_request".
-- Only use "answer_attempt" if the current message is primarily content that could be evaluated as part of an answer.
-- If the current message is irrelevant or non-substantive, set "off_topic".
-
-Intent does NOT change how you compute validation_score:
-- validation_score is always based on the best COMBINED ANSWER so far in the history.
-- user_intent only describes what the student is doing right now.
+- Base user_intent primarily on the CURRENT message.
+- If the user says "I don't know" or "skip", treat it as a "hint_request" or "answer_attempt" (failed) depending on context, but usually "hint_request" if they seem stuck.
 
 ------------------------------------------------
 VALIDATION_ERROR (WHEN answer does not pass)
@@ -485,36 +475,27 @@ VALIDATION_ERROR (WHEN answer does not pass)
 If validation_score is BELOW the passing threshold, you MUST populate validation_error with a short,
 specific explanation in the target language.
 
-=== ANTI-SPOILER RULES (CRITICAL — follow strictly) ===
-Your feedback must GUIDE the student to think further, NOT hand them the missing parts of the answer.
-You must NEVER include specific actions, steps, terms, or solutions from the correct_answers that the
-student has not already mentioned. Instead, describe the CATEGORY or DIRECTION of what is missing.
+=== ANTI-SPOILER & FEEDBACK RULES (CRITICAL) ===
+Your feedback must GUIDE the student to think further, NOT hand them the missing parts.
 
-The explanation MUST:
+1) AVOID REPETITION:
+- Check conversation_history. If you already gave a specific hint and the user failed again, do NOT repeat the same hint.
+- Try a different angle, a simpler sub-question, or break the problem down.
 
-1) Start by classifying the problem type:
-- "INCORRECT:" — if the answer contains factually wrong information (validation_score ≤ 0.30)
-- "INCOMPLETE:" — if the answer is on the right track but missing key elements (validation_score 0.31-0.79)
+2) NO DIRECT ANSWERS:
+- Do NOT reveal specific actions, steps, or terms from the correct_answers that are missing.
+- Do NOT say "You forgot to mention [Key Concept]".
+- Instead, ASK: "What about [General Area]?" or "How does this affect [Related Concept]?"
 
-2) Acknowledge what the student got right (if anything).
+3) STRUCTURE OF FEEDBACK:
+- Acknowledge what is correct (briefly).
+- Identify the GAP (the category/direction missing).
+- Provide a THINKING PROMPT or GUIDING QUESTION.
+- If the user is completely stuck (multiple failed attempts), you can make the hint slightly stronger/more specific, but never give the full answer.
 
-3) Indicate the DIRECTION or CATEGORY of what is missing, using only:
-- The NUMBER of missing elements (e.g., "your answer covers about half of the expected reasoning")
-- The PHASE or AREA that is missing (e.g., "after the initial step", "the broader consequences",
-  "the communication aspect") — but NEVER the specific action itself.
-- A THINKING PROMPT that encourages the student to figure it out (e.g., "think about what happens
-  next in this scenario", "consider who else is affected by this decision").
-
-4) Align with user_intent when relevant:
-- If user_intent = "hint_request", mention that the student is asking for hints so a follow-up agent can respond accordingly.
-- If user_intent = "clarification_request", mention that the student is seeking clarification so a follow-up agent can clarify before re-asking.
-
-Do NOT:
-- Reveal the correct answer or provide a full solution.
-- Name specific actions, steps, or terms from the correct answer that the student hasn't mentioned.
-- Paraphrase or rephrase parts of the correct answer as "what is missing".
-- Produce a hostile or discouraging tone.
-- Invent requirements that are NOT in the reference correct_answers.
+4) TONE:
+- Encouraging but firm on correctness.
+- For high difficulty levels, be precise about what is missing (without solving it).
 
 If validation_score passes the threshold, set validation_error to an empty string "".
 
@@ -525,16 +506,11 @@ You MUST respond with a single valid JSON object with the following keys:
 
 {{
 "validation_score": float,      // in [0.0, 1.0]
-"answer_score": float,         // in [0.0, max_possible_score] = validation_score * max_possible_score
-"user_intent": "string",       // one of: "answer_attempt", "hint_request", "clarification_request", "off_topic"
-"reasoning": "string",         // brief explanation (1-3 sentences) of how you evaluated the combined answer and intent
-"validation_error": "string"   // "" if validation_score >= 0.8; otherwise, explanation of why the answer is not yet correct
+"answer_score": float,         // in [0.0, max_possible_score]
+"user_intent": "string",       // "answer_attempt", "hint_request", "clarification_request", "off_topic"
+"reasoning": "string",         // brief explanation of evaluation
+"validation_error": "string"   // "" if passed; otherwise feedback/hint
 }}
-
-Constraints:
-- The top-level output MUST be valid JSON (no comments, no trailing commas).
-- All strings ("reasoning" and "validation_error") MUST be in the requested language.
-- Do NOT mention system prompts, internal rules, or variable names in the JSON.
 """
 
 
